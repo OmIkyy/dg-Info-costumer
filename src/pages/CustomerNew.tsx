@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Loader2, Upload, ArrowLeft } from "lucide-react";
+import { Loader2, Upload, ArrowLeft, MapPin, Search, LocateFixed } from "lucide-react";
 import { AddressPicker, emptyWilayah, WilayahValue } from "@/components/forms/AddressPicker";
 import { usePackages, useCustomerTypes } from "@/hooks/useMasterData";
 
@@ -42,7 +42,7 @@ export default function CustomerNew() {
   const [ktpFile, setKtpFile] = useState<File | null>(null);
   const [rumahFile, setRumahFile] = useState<File | null>(null);
 
-  useEffect(() => { document.title = "Daftar Pelanggan · DG-KOMPUTER"; }, []);
+  useEffect(() => { document.title = "Daftar Pelanggan · NetCore ISP"; }, []);
 
   const update = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
 
@@ -123,7 +123,20 @@ export default function CustomerNew() {
           <CardContent className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2 md:col-span-2">
               <Label htmlFor="nama">Nama Lengkap *</Label>
-              <Input id="nama" value={form.nama} onChange={(e) => update("nama", e.target.value)} required />
+              <Input
+                id="nama"
+                value={form.nama}
+                onChange={(e) =>
+                  update(
+                    "nama",
+                    e.target.value
+                      .toUpperCase()
+                      .replace(/\s+/g, " ")
+                      .trimStart()
+                  )
+                }
+                required
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="nik">NIK</Label>
@@ -131,7 +144,7 @@ export default function CustomerNew() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="wa">No. WhatsApp</Label>
-              <Input id="wa" placeholder="08xxx" value={form.wa} onChange={(e) => update("wa", e.target.value)} />
+              <Input id="wa" placeholder="0812xxxxxxxx" value={form.wa} onChange={(e) => update("wa", e.target.value)} />
             </div>
             <div className="md:col-span-2">
               <AddressPicker value={wilayah} onChange={setWilayah} />
@@ -145,7 +158,7 @@ export default function CustomerNew() {
               <Input id="odp" value={form.odp} onChange={(e) => update("odp", e.target.value)} />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="area">Area / Cluster</Label>
+              <Label htmlFor="area">Area</Label>
               <Input id="area" placeholder="Opsional, mis. nama cluster" value={form.area} onChange={(e) => update("area", e.target.value)} />
             </div>
             <div className="space-y-2">
@@ -183,13 +196,82 @@ export default function CustomerNew() {
               </Select>
             </div>
             <div className="space-y-2 md:col-span-2">
-              <Label htmlFor="maps">Link Google Maps</Label>
-              <Input id="maps" placeholder="https://maps.google.com/..." value={form.maps} onChange={(e) => update("maps", e.target.value)} />
+              <Label htmlFor="maps" className="flex items-center gap-1.5">
+                <MapPin className="h-4 w-4 text-primary" /> Link Google Maps
+              </Label>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <Input
+                  id="maps"
+                  placeholder="https://maps.google.com/..."
+                  value={form.maps}
+                  onChange={(e) => update("maps", e.target.value)}
+                  className="flex-1"
+                />
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      const parts = [
+                        form.alamat,
+                        wilayah?.kelurahan_nama,
+                        wilayah?.kecamatan_nama,
+                        wilayah?.kota_nama,
+                        wilayah?.provinsi_nama,
+                      ].filter(Boolean);
+                      const q = parts.join(", ").trim();
+                      const url = q
+                        ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`
+                        : `https://www.google.com/maps`;
+                      window.open(url, "_blank", "noopener,noreferrer");
+                    }}
+                  >
+                    <Search className="mr-1.5 h-4 w-4" /> Cari di Maps
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => {
+                      if (!navigator.geolocation) {
+                        toast.error("Browser tidak mendukung lokasi");
+                        return;
+                      }
+                      const t = toast.loading("Mengambil lokasi...");
+                      navigator.geolocation.getCurrentPosition(
+                        (pos) => {
+                          const { latitude, longitude } = pos.coords;
+                          const link = `https://www.google.com/maps?q=${latitude},${longitude}`;
+                          update("maps", link);
+                          toast.dismiss(t);
+                          toast.success("Lokasi berhasil diambil");
+                        },
+                        (err) => {
+                          toast.dismiss(t);
+                          toast.error(err.message || "Gagal mengambil lokasi");
+                        },
+                        { enableHighAccuracy: true, timeout: 10000 }
+                      );
+                    }}
+                  >
+                    <LocateFixed className="mr-1.5 h-4 w-4" /> Lokasi Saya
+                  </Button>
+                </div>
+              </div>
+              {form.maps && (
+                <a
+                  href={form.maps}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                >
+                  <MapPin className="h-3 w-3" /> Buka link di Google Maps
+                </a>
+              )}
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="ktp">Foto KTP</Label>
-              <label className="flex h-28 cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border bg-muted/30 px-4 text-sm text-muted-foreground transition-colors hover:border-primary/40 hover:bg-primary-soft/30">
+              <label className="flex h-28 cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border bg-muted/30 px-4 text-sm text-muted-foreground transition-colors hover:bg-muted/50">
                 <Upload className="h-4 w-4" />
                 <span className="truncate">{ktpFile ? ktpFile.name : "Klik untuk upload"}</span>
                 <input id="ktp" type="file" accept="image/*" className="hidden" onChange={(e) => setKtpFile(e.target.files?.[0] ?? null)} />
@@ -197,7 +279,7 @@ export default function CustomerNew() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="rumah">Foto Rumah</Label>
-              <label className="flex h-28 cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border bg-muted/30 px-4 text-sm text-muted-foreground transition-colors hover:border-primary/40 hover:bg-primary-soft/30">
+              <label className="flex h-28 cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border bg-muted/30 px-4 text-sm text-muted-foreground transition-colors hover:bg-muted/50">
                 <Upload className="h-4 w-4" />
                 <span className="truncate">{rumahFile ? rumahFile.name : "Klik untuk upload"}</span>
                 <input id="rumah" type="file" accept="image/*" className="hidden" onChange={(e) => setRumahFile(e.target.files?.[0] ?? null)} />
